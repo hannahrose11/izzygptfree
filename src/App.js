@@ -7,64 +7,129 @@ export default function App() {
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [currentInput, setCurrentInput] = useState("");
   const [finalPrompt, setFinalPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [error, setError] = useState("");
 
   const questions = [
-    { id: "task", question: "Alright, what’s the annoying thing you want help with today?" },
-    { id: "audience", question: "Who is this for? Who’s going to see or read this when it’s done?" },
-    { id: "tone", question: "Should it sound casual? Professional? Funny? Direct? Tell me the vibe you’re going for." },
-    { id: "include", question: "What details, facts, or ideas absolutely need to be in there? (Even if they’re messy — I’ll sort it out.)" },
-    { id: "avoid", question: "Anything you don’t want it to say or sound like? (Words, phrases, awkward vibes, anything to avoid.)" },
+    { id: "task", question: "Alright, what's the annoying thing you want help with today?" },
+    { id: "audience", question: "Who is this for? Who's going to see or read this when it's done?" },
+    { id: "tone", question: "Should it sound casual? Professional? Funny? Direct? Tell me the vibe you're going for." },
+    { id: "include", question: "What details, facts, or ideas absolutely need to be in there? (Even if they're messy — I'll sort it out.)" },
+    { id: "avoid", question: "Anything you don't want it to say or sound like? (Words, phrases, awkward vibes, anything to avoid.)" },
     { id: "format", question: "Are we making a list? An email? A short caption? A table? Something else?" },
     { id: "context", question: "Where are you using this — like on social media, in a message, printed, or just for your own brain?" },
   ];
 
   const handleNext = async () => {
-    const inputEl = document.querySelector("textarea");
-    const currentAnswer = inputEl ? inputEl.value : "";
-    const updatedAnswers = {
-      ...answers,
-      [questions[step].id]: currentAnswer,
-    };
+    try {
+      setError("");
+      
+      // Save current answer
+      const updatedAnswers = {
+        ...answers,
+        [questions[step].id]: currentInput,
+      };
+      setAnswers(updatedAnswers);
 
-    if (!isPaid && promptCount >= 2) {
-      setShowPaywall(true);
-      return;
-    }
+      // Check paywall before final step
+      if (!isPaid && promptCount >= 2 && step === questions.length - 1) {
+        setShowPaywall(true);
+        return;
+      }
 
-    if (step === questions.length - 1) {
-      setLoading(true);
-      try {
+      if (step === questions.length - 1) {
+        // Last question - generate prompt
+        setLoading(true);
+        
+        console.log("Sending data to API:", updatedAnswers);
+        
         const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
           body: JSON.stringify(updatedAnswers),
         });
-
-        const data = await response.json();
-        const prompt = data.finalPrompt || "Something went wrong. Try again!";
-        setFinalPrompt(prompt);
+        
+        const responseText = await response.text();
+        console.log("Raw response:", responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+          console.log("Parsed response:", data);
+        } catch (e) {
+          console.error("Failed to parse response:", e);
+          // If it's not JSON, just use the text as is
+          setFinalPrompt(responseText);
+          
+          if (!isPaid) {
+            promptCount++;
+            localStorage.setItem("izzyPromptCount", promptCount.toString());
+          }
+          return;
+        }
+        
+        if (data.finalPrompt) {
+          setFinalPrompt(data.finalPrompt);
+        } else if (data.body && data.body.finalPrompt) {
+          // Sometimes the response is nested
+          setFinalPrompt(data.body.finalPrompt);
+        } else {
+          // If we get the template back, show it anyway
+          setFinalPrompt(responseText);
+        }
 
         if (!isPaid) {
           promptCount++;
           localStorage.setItem("izzyPromptCount", promptCount.toString());
         }
-      } catch (err) {
-        console.error("Fetch error:", err);
-        setFinalPrompt("Something went wrong. Try again.");
-      } finally {
+      } else {
+        // Move to next question
+        setStep(step + 1);
+        setCurrentInput(answers[questions[step + 1]?.id] || "");
+      }
+    } catch (err) {
+      console.error("Error details:", err);
+      setError(err.message || "Something went wrong. Please try again.");
+      setLoading(false);
+    } finally {
+      if (step === questions.length - 1) {
         setLoading(false);
       }
-    } else {
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 0) {
+      // Save current answer before going back
+      const updatedAnswers = {
+        ...answers,
+        [questions[step].id]: currentInput,
+      };
       setAnswers(updatedAnswers);
-      setStep(step + 1);
+      
+      setStep(step - 1);
+      setCurrentInput(updatedAnswers[questions[step - 1].id] || "");
     }
   };
 
   const copyPrompt = () => {
-    navigator.clipboard.writeText(finalPrompt);
+    navigator.clipboard.writeText(finalPrompt)
+      .then(() => alert("Prompt copied to clipboard!"))
+      .catch(() => alert("Failed to copy prompt"));
+  };
+
+  const startOver = () => {
+    setStep(0);
+    setAnswers({});
+    setCurrentInput("");
+    setFinalPrompt("");
+    setError("");
   };
 
   const current = questions[step];
@@ -83,8 +148,42 @@ export default function App() {
       }}
     >
       <div style={{ maxWidth: 600, width: "100%" }}>
+        {error && (
+          <div style={{ 
+            background: "#fee", 
+            color: "#c00", 
+            padding: 12, 
+            marginBottom: 20,
+            borderRadius: 8,
+            fontSize: 14,
+            textAlign: "center"
+          }}>
+            {error}
+          </div>
+        )}
+        
         {!finalPrompt ? (
           <div style={{ textAlign: "center" }}>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>
+                Question {step + 1} of {questions.length}
+              </div>
+              <div style={{ 
+                width: "100%", 
+                height: 8, 
+                background: "#e0e0e0", 
+                borderRadius: 4,
+                overflow: "hidden"
+              }}>
+                <div style={{ 
+                  width: `${((step + 1) / questions.length) * 100}%`, 
+                  height: "100%", 
+                  background: "#FD608D",
+                  transition: "width 0.3s ease"
+                }} />
+              </div>
+            </div>
+            
             <p style={{ fontSize: 18, marginBottom: 12 }}>{current.question}</p>
             <textarea
               rows={4}
@@ -97,28 +196,51 @@ export default function App() {
                 fontSize: 16,
                 borderRadius: 8,
                 border: "1px solid #ccc",
+                resize: "vertical",
               }}
-              defaultValue={answers[current.id] || ""}
+              value={currentInput}
+              onChange={(e) => setCurrentInput(e.target.value)}
+              placeholder="Type your answer here..."
             />
-            <button
-              onClick={handleNext}
-              style={{
-                marginTop: 16,
-                background: "#FD608D",
-                color: "white",
-                padding: "10px 20px",
-                borderRadius: 8,
-                border: "none",
-                fontWeight: "bold",
-                cursor: "pointer",
-              }}
-            >
-              {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
-            </button>
+            
+            <div style={{ marginTop: 16 }}>
+              {step > 0 && (
+                <button
+                  onClick={handleBack}
+                  style={{
+                    marginRight: 8,
+                    background: "#f0f0f0",
+                    color: "#333",
+                    padding: "10px 20px",
+                    borderRadius: 8,
+                    border: "none",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                  }}
+                >
+                  Back
+                </button>
+              )}
+              <button
+                onClick={handleNext}
+                disabled={!currentInput.trim() || loading}
+                style={{
+                  background: currentInput.trim() ? "#FD608D" : "#ccc",
+                  color: "white",
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  fontWeight: "bold",
+                  cursor: currentInput.trim() && !loading ? "pointer" : "not-allowed",
+                }}
+              >
+                {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
+              </button>
+            </div>
           </div>
         ) : (
           <div style={{ textAlign: "center" }}>
-            <h2 style={{ fontSize: 20, marginBottom: 12 }}>Here’s your GPT-optimized prompt:</h2>
+            <h2 style={{ fontSize: 20, marginBottom: 12 }}>Here's your GPT-optimized prompt:</h2>
             <pre
               style={{
                 background: "#f6f6f6",
@@ -126,6 +248,8 @@ export default function App() {
                 borderRadius: 8,
                 whiteSpace: "pre-wrap",
                 textAlign: "left",
+                maxHeight: 400,
+                overflow: "auto",
               }}
             >
               {finalPrompt}
@@ -146,6 +270,64 @@ export default function App() {
               >
                 Copy Prompt
               </button>
+              <button
+                onClick={startOver}
+                style={{
+                  background: "#f0f0f0",
+                  color: "#333",
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  border: "none",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                Start Over
+              </button>
+            </div>
+            
+            <div style={{ marginTop: 16 }}>
+              <p style={{ fontSize: 14, color: "#666", marginBottom: 8 }}>Open in:</p>
+              <a
+                href={`https://chat.openai.com/?model=gpt-4&prompt=${encodeURIComponent(finalPrompt)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ 
+                  marginRight: 8,
+                  color: "#FD608D",
+                  textDecoration: "none",
+                  fontWeight: "bold"
+                }}
+              >
+                ChatGPT
+              </a>
+              <span style={{ margin: "0 4px", color: "#ccc" }}>•</span>
+              <a 
+                href="https://claude.ai" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ 
+                  marginRight: 8,
+                  color: "#FD608D",
+                  textDecoration: "none",
+                  fontWeight: "bold"
+                }}
+              >
+                Claude
+              </a>
+              <span style={{ margin: "0 4px", color: "#ccc" }}>•</span>
+              <a 
+                href="https://gemini.google.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ 
+                  color: "#FD608D",
+                  textDecoration: "none",
+                  fontWeight: "bold"
+                }}
+              >
+                Gemini
+              </a>
             </div>
           </div>
         )}
@@ -177,10 +359,10 @@ export default function App() {
             >
               <h2 style={{ fontSize: "32px", marginBottom: "1rem" }}>🚀 Unlock Unlimited Prompts</h2>
               <p style={{ fontSize: "18px", color: "#666", marginBottom: "2rem" }}>
-                You’ve used your 2 free prompts. Upgrade now to continue automating your workflow with Izzy.
+                You've used your 2 free prompts. Upgrade now to continue automating your workflow with Izzy.
               </p>
               <a
-                href="https://buy.stripe.com/dRm5kD61H189a6K1gnfEk00"
+                href="https://buy.stripe.com/8x2cN54XDg331Ae6AHfEk0c"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -202,6 +384,8 @@ export default function App() {
               <button
                 onClick={() => setShowPaywall(false)}
                 style={{
+                  display: "block",
+                  margin: "0.5rem auto",
                   backgroundColor: "#f0f0f0",
                   color: "#333",
                   fontSize: "16px",
