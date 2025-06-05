@@ -315,7 +315,7 @@ export default function App() {
               You've used your 2 free prompts. Upgrade now to continue automating your workflow with Izzy.
             </p>
             
-            
+            <a
               href="https://buy.stripe.com/8wX2cN54XDg331Ae6AfEk0c"
               target="_blank"
               rel="noopener noreferrer"
