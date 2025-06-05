@@ -347,11 +347,10 @@ export default function App() {
               }}
             >
               Maybe later
-</button>
+            </button>
           </div>
         </div>
       )}
     </div>
-  </div>
   );
 }
