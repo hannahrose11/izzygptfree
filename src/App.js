@@ -1,4 +1,3 @@
-@'
 import * as React from "react";
 import { useState, useEffect } from "react";
 
@@ -384,4 +383,3 @@ export default function App() {
     </div>
   );
 }
-'@ | Set-Content -Path src/App.js -Encoding ASCII
