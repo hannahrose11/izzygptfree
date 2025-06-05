@@ -21,13 +21,30 @@ export default function App() {
   const [promptCount, setPromptCount] = useState(0);
   const [showPaywall, setShowPaywall] = useState(false);
 
-  // Load prompt count from localStorage
+  // Load prompt count - try localStorage first, use sessionStorage as fallback
   useEffect(() => {
-    const savedCount = localStorage.getItem('izzyPromptCount');
-    if (savedCount) {
-      setPromptCount(parseInt(savedCount));
+    try {
+      const savedCount = localStorage.getItem('izzyPromptCount') || sessionStorage.getItem('izzyPromptCount');
+      if (savedCount) {
+        setPromptCount(parseInt(savedCount));
+        console.log('Loaded prompt count:', savedCount);
+      }
+    } catch (e) {
+      console.log('Storage not available:', e);
     }
   }, []);
+
+  const savePromptCount = (count) => {
+    try {
+      localStorage.setItem('izzyPromptCount', count.toString());
+    } catch (e) {
+      try {
+        sessionStorage.setItem('izzyPromptCount', count.toString());
+      } catch (e2) {
+        console.log('Cannot save to storage');
+      }
+    }
+  };
 
   const handleNext = async () => {
     try {
@@ -42,6 +59,7 @@ export default function App() {
 
       if (step === questions.length - 1) {
         // Check if user has used their 2 free prompts
+        console.log('Current prompt count:', promptCount);
         if (promptCount >= 2) {
           setShowPaywall(true);
           return;
@@ -85,10 +103,11 @@ export default function App() {
           setFinalPrompt(responseText);
         }
 
-        // Increment prompt count
+        // Increment prompt count AFTER successful generation
         const newCount = promptCount + 1;
         setPromptCount(newCount);
-        localStorage.setItem('izzyPromptCount', newCount.toString());
+        savePromptCount(newCount);
+        console.log('New prompt count:', newCount);
       } else {
         setStep(step + 1);
         setCurrentInput(answers[questions[step + 1]?.id] || "");
@@ -120,6 +139,7 @@ export default function App() {
   };
 
   const startOver = () => {
+    // Don't reset prompt count when starting over
     setStep(0);
     setAnswers({});
     setCurrentInput("");
@@ -239,6 +259,11 @@ export default function App() {
                 {step === questions.length - 1 ? (loading ? "Generating..." : "Get My Prompt") : "Next"}
               </button>
             </div>
+            
+            {/* Debug info */}
+            <div style={{ marginTop: 10, fontSize: 11, color: "#999" }}>
+              Prompts used: {promptCount}/2
+            </div>
           </div>
         ) : (
           <div style={{ textAlign: "center" }}>
@@ -286,7 +311,7 @@ export default function App() {
               </button>
             </div>
             <div style={{ marginTop: 20, fontSize: 12, color: "#666" }}>
-              {promptCount < 2 ? `${2 - promptCount} free prompts remaining` : "You've used all your free prompts"}
+              {promptCount <= 2 ? `${2 - promptCount} free prompts remaining` : "You've used all your free prompts"}
             </div>
           </div>
         )}
