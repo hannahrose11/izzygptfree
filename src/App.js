@@ -31,12 +31,12 @@ export default function App() {
   const handleNext = async () => {
     try {
       setError("");
-      
+
       const updatedAnswers = {
         ...answers,
         [questions[step].id]: currentInput,
       };
-      
+
       setAnswers(updatedAnswers);
 
       if (step === questions.length - 1) {
@@ -46,7 +46,7 @@ export default function App() {
         }
 
         setLoading(true);
-        
+
         const dataToSend = {
           task: updatedAnswers.task || "",
           audience: updatedAnswers.audience || "",
@@ -56,33 +56,37 @@ export default function App() {
           format: updatedAnswers.format || "",
           context: updatedAnswers.context || ""
         };
-        
+
         const response = await fetch("https://eo61pxe93i0terz.m.pipedream.net", {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
             "Accept": "application/json",
           },
           body: JSON.stringify(dataToSend),
         });
-        
+
         const responseText = await response.text();
-        
+
         let data;
         try {
           data = JSON.parse(responseText);
         } catch (e) {
           setFinalPrompt(responseText);
+          const newCount = promptCount + 1;
+          setPromptCount(newCount);
+          sessionStorage.setItem('izzyPromptCount', newCount.toString());
+          return;
         }
-        
-        if (data && data.finalPrompt) {
+
+        if (data.finalPrompt) {
           setFinalPrompt(data.finalPrompt);
-        } else if (data && data.body && data.body.finalPrompt) {
+        } else if (data.body && data.body.finalPrompt) {
           setFinalPrompt(data.body.finalPrompt);
         } else {
           setFinalPrompt(responseText);
         }
-
+        
         const newCount = promptCount + 1;
         setPromptCount(newCount);
         sessionStorage.setItem('izzyPromptCount', newCount.toString());
@@ -104,7 +108,7 @@ export default function App() {
         [questions[step].id]: currentInput,
       };
       setAnswers(updatedAnswers);
-      
+
       setStep(step - 1);
       setCurrentInput(updatedAnswers[questions[step - 1].id] || "");
     }
@@ -136,7 +140,7 @@ export default function App() {
       padding: 24,
       position: "relative"
     }}>
-      <div style={{ maxWidth: 600, width: "100%", position: "relative", zIndex: 1 }}>
+      <div style={{ maxWidth: 600, width: "100%" }}>
         {error && (
           <div style={{
             background: "#fee",
@@ -263,6 +267,7 @@ export default function App() {
               <button
                 onClick={startOver}
                 style={{
+                  marginRight: 8,
                   background: "#f0f0f0",
                   color: "#333",
                   padding: "10px 16px",
@@ -309,6 +314,7 @@ export default function App() {
             <p style={{ fontSize: 18, color: "#666", marginBottom: 32 }}>
               You've used your 2 free prompts. Upgrade now to continue automating your workflow with Izzy.
             </p>
+            
             
               href="https://buy.stripe.com/8wX2cN54XDg331Ae6AfEk0c"
               target="_blank"
