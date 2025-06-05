@@ -1,3 +1,4 @@
+@'
 import * as React from "react";
 import { useState, useEffect } from "react";
 
@@ -9,7 +10,7 @@ export default function App() {
     { id: "include", question: "What details, facts, or ideas absolutely need to be in there?" },
     { id: "avoid", question: "Anything you don't want it to say or sound like?" },
     { id: "format", question: "Are we making a list? An email? A short caption? A table? Something else?" },
-    { id: "context", question: "Where are you using this ? like on social media, in a message, printed, or just for your own brain?" },
+    { id: "context", question: "Where are you using this — like on social media, in a message, printed, or just for your own brain?" },
   ];
 
   const [step, setStep] = useState(0);
@@ -340,7 +341,7 @@ export default function App() {
             textAlign: "center",
             position: "relative"
           }}>
-            <h2 style={{ fontSize: 32, marginBottom: 16 }}>?? Unlock Unlimited Prompts</h2>
+            <h2 style={{ fontSize: 32, marginBottom: 16 }}>🚀 Unlock Unlimited Prompts</h2>
             <p style={{ fontSize: 18, color: "#666", marginBottom: 32 }}>
               You've used your 2 free prompts. Upgrade now to continue automating your workflow with Izzy.
             </p>
@@ -383,3 +384,4 @@ export default function App() {
     </div>
   );
 }
+'@ | Set-Content -Path src/App.js -Encoding ASCII
