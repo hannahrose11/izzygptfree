@@ -352,6 +352,7 @@ export default function App() {
         </div>
       )}
     </div>
+  </div>
   );
 }
 // Build fix: 2025-06-05 17:31:30
